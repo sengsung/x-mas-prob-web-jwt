@@ -4,10 +4,17 @@ const jwt = require('jsonwebtoken');
 const express = require('express');
 const router = express.Router();
 
+const { io } = require('../socket');
+
 const CONF = require('../config');
 const { wrap, getHash } = require('../func');
 
 router.use(express.static(`${__dirname}/../static/csrf`));
+
+router.get('/logout', (req, res) => {
+  res.cookie('token', '', { maxAge: Date.now() });
+  res.redirect('.');
+});
 
 router.use((req, res, next) => {
   const token = req.cookies.token;
@@ -76,9 +83,21 @@ router.post('/login', wrap(async (req, res) => {
   res.send({ code: 200 });
 }));
 
-router.get('/logout', (req, res) => {
-  res.cookie('token', '', { maxAge: Date.now() });
-  res.redirect('.');
+router.post('/admin', (req, res) => {
+  if (req.body.password !== CONF.password) return res.send({ code: 404 });
+
+  const options = CONF.jwt.csrf.options;
+  options.expiresIn = '3d';
+
+  const token = jwt.sign(
+    {
+      uid: 0,
+      isAdmin: true,
+    },
+    CONF.jwt.csrf.key.private,
+    options,
+  );
+  res.send({ code: 200, token });
 });
 
 router.get('/me', needAuth, wrap(async (req, res) => {
@@ -105,20 +124,21 @@ router.get('/board', needAuth, wrap(async (req, res) => {
 
 router.get('/board/:id', needAuth, wrap(async (req, res) => {
   const { id } = req.params;
-  const { uid } = req.auth;
+  const { uid, isAdmin } = req.auth;
 
   const board = await BoardCsrf.findOne({
     where: {
       id,
-      uid
     },
-    attributes: ['title', 'content'],
+    attributes: ['uid', 'title', 'content'],
   });
+
   if (!board) return res.send({ code: 404 });
+  if (board.uid !== uid && !isAdmin) return res.send({ code: 404 });
 
-  if (board.content.includes('<script>') || board.content.includes('<form>')) return res.send({ code: 400 });
+  // if (board.content.includes('<script>') || board.content.includes('<form>')) return res.send({ code: 400 });
 
-  res.send({ code: 200, data: board });
+  res.send(`<html><h1>${board.title}</h1><span>${board.content}</span></html>`);
 }));
 
 router.post('/board', needAuth, wrap(async (req, res) => {
@@ -133,7 +153,10 @@ router.post('/board', needAuth, wrap(async (req, res) => {
     content,
   });
 
-  res.send({ code: 200, id: await board.get('id') });
+  const id = await board.get('id');
+  res.send({ code: 200, id });
+
+  io.emit('new', id);
 }));
 
 function needAuth(req, res, next) {

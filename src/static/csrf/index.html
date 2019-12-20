@@ -31,7 +31,7 @@
 <script>
   (async () => {
     const data1 = await axios.get('//localhost/csrf/me');
-    console.log(data1);
+
     if (data1.data.code !== 200) return;
     document.getElementById('text_isLogin').innerHTML = `${data1.data.username}님 환영합니다<br><a href="./logout">로그아웃</a>`;
 
@@ -47,8 +47,8 @@
       const td1 = document.createElement('td');
       const td2 = document.createElement('td');
 
-      td1.innerHTML = `<a href="./board.html#${e.id}">${e.id}</a>`;
-      td2.innerHTML = `<a href="./board.html#${e.id}">${e.title}</a >`;
+      td1.innerHTML = `<a href="./board/${e.id}">${e.id}</a>`;
+      td2.innerHTML = `<a href="./board/${e.id}">${e.title}</a >`;
       tr.appendChild(td1);
       tr.appendChild(td2);
       table.appendChild(tr);

@@ -20,6 +20,7 @@
     "morgan": "^1.9.1",
     "request-promise": "^4.2.5",
     "require-promise": "^1.0.1",
-    "sequelize": "^5.21.3"
+    "sequelize": "^5.21.3",
+    "socket.io": "^2.3.0"
   }
 }

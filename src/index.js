@@ -1,5 +1,8 @@
 const CONF = require('./config');
 
+const http = require('http');
+const https = require('https');
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -10,6 +13,8 @@ const app = express();
 
 const bruthapp = require('./routes/bruth');
 const csrfapp = require('./routes/csrf');
+
+const { listenIO } = require('./socket');
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -30,6 +35,24 @@ app.use((_req, res, _next) => {
   res.send({ code: 404 });
 });
 
-app.listen(CONF.http.port, () => {
-  console.log(`http server start on ${CONF.http.port}`);
-});
+const sslSetting = CONF.https.use ? {
+  key: fs.readFileSync(CONF.https.key),
+  cert: fs.readFileSync(CONF.https.cert),
+} : {};
+
+const httpServer = http.createServer(app);
+const httpsServer = https.createServer(sslSetting, app);
+
+(async () => {
+  httpServer.listen(CONF.http.port, () => {
+    console.log('HTTP Server Start');
+  });
+
+  if (CONF.https.use) {
+    httpsServer.listen(CONF.https.port, () => {
+      console.log('HTTPS Server Start');
+    });
+  }
+
+  listenIO(httpServer, httpsServer);
+})();
